@@ -11,7 +11,7 @@ import { install as house } from './cmds-house.js';
 import { install as casino } from './cmds-casino.js';
 import { install as social } from './cmds-social.js';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+let ROOT = process.cwd(); try { ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'); } catch { /* bundled single-file build: assets come from opts.assets */ }
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 export function joinCode(ip, port) { const hex = ip.split('.').map(n => (+n).toString(16).padStart(2, '0')).join('') + port.toString(16).padStart(4, '0'); return hex.toUpperCase().match(/.{4}/g).join('-'); }
@@ -23,6 +23,11 @@ export function createHost(opts = {}) {
     let url = decodeURIComponent((req.url || '/').split('?')[0]);
     if (url === '/api/info') { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ name: game.state.meta.name, players: game.sessions.size, max: game.state.meta.settings.maxPlayers || 16, password: !!game.state.meta.settings.password, proto: 1 })); return; }
     if (url === '/') url = '/index.html';
+    if (opts.assets) {                                   // single-file executable: files are embedded
+      const key = url.startsWith('/shared/') ? url.slice(1) : 'public' + url; const data = opts.assets(key);
+      if (!data) { res.statusCode = 404; return res.end('not found'); }
+      res.setHeader('content-type', MIME[path.extname(url)] || 'application/octet-stream'); res.setHeader('cache-control', 'no-store'); return res.end(Buffer.from(data));
+    }
     const base = url.startsWith('/shared/') ? ROOT : path.join(ROOT, 'public');
     const file = path.normalize(path.join(base, url)); if (!file.startsWith(base)) { res.statusCode = 403; return res.end('forbidden'); }
     fs.readFile(file, (err, data) => { if (err) { res.statusCode = 404; return res.end('not found'); } res.setHeader('content-type', MIME[path.extname(file)] || 'application/octet-stream'); res.setHeader('cache-control', 'no-store'); res.end(data); });
@@ -37,20 +42,26 @@ export function createHost(opts = {}) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export function runCli({ assets, defaultDir, openBrowser = false, pauseOnExit = false } = {}) {
   const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
   const fast = process.argv.includes('--fast');
-  const port = +arg('port', 3000); const world = arg('world', 'Marigold Bay'); const dir = arg('dir', path.join(ROOT, 'saves', world.toLowerCase().replace(/[^a-z0-9]+/g, '-')));
+  const port = +arg('port', 3000); const world = arg('world', 'Marigold Bay'); const dir = arg('dir', path.join(defaultDir || path.join(ROOT, 'saves'), world.toLowerCase().replace(/[^a-z0-9]+/g, '-')));
   const settings = { maxPlayers: +arg('max', 16) }; if (arg('password')) settings.password = arg('password'); if (process.argv.includes('--no-casino')) settings.casino = false;
   if (fast) settings.upkeepSec = 60;
   const casinoTimers = fast ? { roulette: { bet: 12000, lock: 1500, spin: 5000, settle: 4000 }, horses: { bet: 30000, parade: 4000, race: 20000, result: 8000 }, blackjack: { bet: 10000 } } : {};
-  const host = createHost({ world, dir, settings, casinoTimers, log: (m) => console.log(new Date().toISOString().slice(11, 19), m), lan: lanAddresses() });
+  const host = createHost({ world, dir, settings, casinoTimers, assets, log: (m) => console.log(new Date().toISOString().slice(11, 19), m), lan: lanAddresses() });
   host.listen(port).then((p) => {
     console.log(`\n  ♣ CASINETE host "${world}" is running  (save folder: ${dir})\n`);
     console.log(`  Play on this computer:   http://localhost:${p}`);
     for (const ip of lanAddresses()) console.log(`  Friends on your network: http://${ip}:${p}      (join code ${joinCode(ip, p)})`);
-    console.log(`\n  You (on localhost) are the Host: you get the Host panel, dev tools and admin commands. Ctrl+C to save & quit.\n`);
-  });
+    console.log(`\n  You (on localhost) are the Host: you get the Host panel, dev tools and admin commands. Close this window or press Ctrl+C to save & quit.\n`);
+    if (openBrowser) openUrl(`http://localhost:${p}`);
+  }).catch((e) => { console.error('Could not start the Host:', e.message, e.code === 'EADDRINUSE' ? '(port already in use — is Casinete already running? try --port 3001)' : ''); if (pauseOnExit) setTimeout(() => process.exit(1), 60000); else process.exit(1); });
   const quit = async () => { console.log('\nSaving world…'); await host.close(); process.exit(0); };
   process.on('SIGINT', quit); process.on('SIGTERM', quit);
+  return host;
 }
+function openUrl(url) { import('node:child_process').then(({ exec }) => { const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`; exec(cmd, () => {}); }); }
+
+let isMain = false; try { isMain = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url); } catch { /* bundled build */ }
+if (isMain) runCli();

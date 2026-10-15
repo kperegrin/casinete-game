@@ -1,0 +1,40 @@
+name: Build Windows .exe and attach to release
+
+# Runs when this file changes on a branch (first publication), when a v* tag is pushed, or manually
+# (Actions → "Build Windows .exe…" → Run workflow → choose the release tag).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the .exe to
+        default: v1.0.0
+  push:
+    tags: ['v*']
+    paths: ['.github/workflows/release-exe.yml']
+    branches: ['claude/**']
+
+permissions:
+  contents: write
+
+jobs:
+  exe:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'v1.0.0' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - name: Install dependencies
+        working-directory: game
+        run: npm ci
+      - name: Run tests
+        working-directory: game
+        run: npm test
+      - name: Build Casinete.exe (Windows x64, single file)
+        working-directory: game
+        run: node tools/build-exe.mjs --target win --out dist/Casinete.exe
+      - name: Attach to release ${{ env.TAG }}
+        run: gh release upload "$TAG" game/dist/Casinete.exe --clobber --repo "$GITHUB_REPOSITORY"
