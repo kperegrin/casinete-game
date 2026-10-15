@@ -125,11 +125,11 @@ public sealed class SlotMachineDefinition {
 | # | Machine | Type | Verified math |
 |---|---|---|---|
 | 1 | **Lucky Clover Classic** | 3 reels × 1 line, low volatility | Exact enumeration: **base RTP 93.88%**, hit rate 33.4%; +1% jackpot ≈ **94.9%** |
-| 2 | **Boardwalk Bonanza** | 5×3, 20 fixed lines, wilds, scatter free spins ×2 | Monte-Carlo (3M spins): **total RTP ≈ 94.8%**, hit rate 14.4%, bonus 1 in ~24 spins, max line win 4,800× line bet; high volatility |
+| 2 | **Boardwalk Bonanza** | 5×3, 20 fixed lines, wilds, scatter free spins ×2 | Monte-Carlo on the *actual shipped reel strips* (`game/tools/slotsim.js`, 6M spins): **total RTP ≈ 95.2%**, any-win rate ≈ 67%, bonus 1 in ~23 spins; high volatility. (Strip *order* matters for scatter statistics, so certification must use the real strips.) |
 | 3 | **Neon Nights** *(post-launch)* | 5×3, 243 ways, "Hold & Spin" neon-orb bonus linked to Town Jackpot | to be tuned with `SlotSim` (design: orbs 1×–50× bet, 3 respins reset, grand fill = jackpot) |
 | 4 | **Treasure of the Deep** *(post-launch)* | 6×5 cluster pays with cascades and growing multiplier | tune with `SlotSim` |
 
-*(Reproduce: `python3 tools/slot-sim/classic_clover.py`, `python3 tools/slot-sim/video_boardwalk.py` — the C# `SlotSim` tool replaces these for certification at 10⁹ spins.)*
+*(Reproduce: `cd game && npm run slotsim`. The early Python scripts in `tools/slot-sim/` used clumped reel strips and are kept only as the first exploration; `classic_clover.py` is still exact for the classic machine.)*
 
 #### Lucky Clover Classic — reels and pay table
 Each reel is a 32-stop strip. Stops per symbol `[Clover, Star, Bell, Horseshoe, Lemon, Cherry, Blank]`:
@@ -156,7 +156,7 @@ Bets: 10 / 25 / 50 / 100 / 250 Coins. Jackpot eligibility: 250.
 
 #### Boardwalk Bonanza — structure
 - Symbols: **Wild** (substitutes all but Scatter), **Scatter shell** (pays anywhere, triggers feature), Lighthouse, Sailboat, Pelican, Ice cream, Starfish, Pebble.
-- 5 reels × 50 stops (weights per reel in `video_boardwalk.py`), 20 fixed lines (left-to-right), line bet 1–25 (total bet = 20 × line bet).
+- 5 reels × 50 stops, symbols spread evenly around each strip (weights per reel in `game/server/casino/slots.js`; 3 scatters per reel), 20 fixed lines (left-to-right), line bet 1–25 (total bet = 20 × line bet).
 - Pays (× line bet for 3/4/5): Lighthouse 12/48/240, Sailboat 7/24/120, Pelican 5/14/72, Ice cream 4/10/48, Starfish 2/7/36, Pebble 1/5/24, Wild 12/60/300.
 - Scatter: 3/4/5 pay 2/5/20 × **total** bet; award **8/12/20 free spins** with **×2** line wins (no retrigger in v1).
 - Reel stop animation with anticipation only when *the result is actually decided that way* (no fake near-miss manipulation).

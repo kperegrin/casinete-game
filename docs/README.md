@@ -19,7 +19,7 @@ The brief asked for 30 sections in a fixed order. They are split across files; s
 | [07-technical-architecture-data.md](07-technical-architecture-data.md) | 20 Tech architecture (engine comparison) · 21 Data architecture · 23 Performance · 24 Folder structure · 25 Classes |
 | [08-roadmap-testing-risks.md](08-roadmap-testing-risks.md) | 26 MVP · 27 Roadmap · 28 Testing · 29 Risks · 30 Expansion · **Prototype implementation plan** |
 
-`tools/slot-sim/` contains runnable scripts that verified the slot-machine RTP numbers quoted in `05-casino.md`.
+`tools/slot-sim/` contains the first runnable slot-RTP scripts; **`game/` is a runnable web prototype of the design** (host + clients over LAN) with the certified slot tool, tests and a test tour — start with [`game/README.md`](../game/README.md).
 
 ## The ten decisions everything else hangs on
 
