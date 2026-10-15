@@ -21,7 +21,7 @@ export function installPanels() {
     ring: (id) => confirmBox('The door is closed. Ring the doorbell?', async () => { const r = await cmd('prop.ring', { id }); toast(r.ok ? '🔔 You rang the doorbell. Wait for an answer…' : errText(r)); }, '🔔 Ring'),
     cashier: (r) => bus.emit('openCashier', r),
   });
-  window.addEventListener('keydown', (e) => { if (e.code === 'KeyM' && S.me && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { world.cam.zoom = S.loc === 'world' ? 1.55 : 1.8; } });
+  window.addEventListener('keydown', (e) => { if (e.code === 'KeyM' && S.me && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { world.cam.zoom = S.loc === 'world' ? 1.0 : 1.1; } });
   bus.on('welcome', () => { if (S.isHost) toast('You are the Host: press F2 for the Host panel.', 'info', 6000); });
 }
 
@@ -222,7 +222,7 @@ function openSettings() {
   openPanel('settings', '⚙ Settings', () => h('div', { class: 'col', style: { width: '380px' } }, h('h3', {}, 'Audio'),
     BUSES.map(b => h('div', { class: 'row' }, h('span', { style: { width: '90px', textTransform: 'capitalize' } }, b), h('input', { type: 'range', class: 'grow', min: 0, max: 1, step: 0.01, value: getVol(b), oninput: (e) => setVol(b, +e.target.value) }))),
     h('label', {}, h('input', { type: 'checkbox', checked: !!S.settings.mute, onchange: (e) => { S.settings.mute = e.target.checked; saveSettings(); import('./audio.js').then(a => a.applyVolumes()); } }), ' Mute all'),
-    h('h3', {}, 'Display'), h('div', { class: 'row' }, 'Zoom', h('input', { type: 'range', class: 'grow', min: 0.8, max: 3, step: 0.05, value: world.cam.zoom, oninput: (e) => { world.cam.zoom = +e.target.value; } })),
+    h('h3', {}, 'Display'), h('div', { class: 'row' }, 'Zoom', h('input', { type: 'range', class: 'grow', min: 0.5, max: 2.4, step: 0.05, value: world.cam.zoom, oninput: (e) => { world.cam.zoom = +e.target.value; } })),
     h('h3', {}, 'Controls'), h('div', { class: 'muted', style: { fontSize: '.85rem' } }, 'WASD/Arrows move · E interact · I inventory · Tab phone · B build · G emotes · 1–9 quick emotes · Enter chat · mouse wheel zoom · Esc close · gamepad: left stick + A'),
     h('h3', {}, 'Game'), h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: () => { closePanel('settings'); bus.emit('openHelp'); } }, '❓ Help'), h('button', { class: 'btn bad', onclick: () => { disconnect(); } }, '🚪 Leave game'))), { w: 410, y: 60 });
 }

@@ -38,11 +38,11 @@ await a.click('text=/Buy 🪙/'); await sleep(300); assert.equal(await S(a, 'S.i
 for (const d of ['bed_single', 'lamp_floor', 'rug_round', 'plant_big', 'painting', 'tv', 'table_coffee', 'wardrobe', 'armchair']) await cmd(a, 'shop.buy', { shop: 'furn', def: d, qty: 1 });
 await a.keyboard.press('Escape'); await sleep(100);
 // ---- home + build mode with real mouse clicks
-await cmd(a, 'dev.tp', { loc: 'world', x: 4.5, y: 22.2 }); await sleep(200); await cmd(a, 'enter', { id: 'h1' }); await sleep(400);
+await cmd(a, 'dev.tp', { loc: 'world', x: 4.5, y: 27.3 }); await sleep(200); await cmd(a, 'enter', { id: 'h1' }); await sleep(400);
 assert.equal(await S(a, 'S.loc'), 'home:h1'); await shot(a, '12-home-empty');
 await a.keyboard.press('KeyB'); await sleep(300); if (!(await S(a, 'S.buildMode'))) console.log('DEBUG', await a.evaluate(() => JSON.stringify({ role: window.__casinete.S.role, loc: window.__casinete.S.loc, ae: document.activeElement?.tagName + '#' + document.activeElement?.id, toasts: [...document.querySelectorAll('.toast')].map(t => t.textContent) })));
 assert.equal(await S(a, 'S.buildMode'), true);
-const tilePx = (tx, ty) => a.evaluate(([tx, ty]) => { const { world } = window.__casinete; const z = world.cam.zoom * 32; return [world.cam.ox + (tx + 0.5) * z, world.cam.oy + (ty + 0.5) * z]; }, [tx, ty]);
+const tilePx = (tx, ty) => a.evaluate(([tx, ty]) => { const { world } = window.__casinete; const q = world.tileToScreen(tx + 0.5, ty + 0.5); return [q.x, q.y]; }, [tx, ty]);
 await a.click('#panels .item:has-text("Loveseat")'); let [px, py] = await tilePx(2, 2); await a.mouse.move(px, py); await a.mouse.move(px + 1, py + 1); await shot(a, '13-build-ghost'); await a.mouse.click(px + 1, py + 1); await sleep(300);
 assert.equal(await S(a, 'S.home.objects.length'), 1); step('placed furniture with the mouse');
 for (const [name, tx, ty] of [['Floor Lamp', 5, 1], ['Round Rug', 3, 3], ['Single Bed', 6, 3], ['Indoor Tree', 1, 1]]) { await a.click(`#panels .item:has-text("${name}")`); [px, py] = await tilePx(tx, ty); await a.mouse.move(px, py); await a.mouse.move(px + 1, py + 1); await a.mouse.click(px + 1, py + 1); await sleep(200); }

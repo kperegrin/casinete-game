@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Casinete tileset preview</title>
+<body style="margin:0;background:#2a3350;color:#fff;font:12px system-ui"><div id="o" style="padding:8px"></div>
+<script type="module">
+import { furnitureSprite, thingSprite, buildingSprite, treeSprite, characterSprite, drawSprite, loadTileset, tilesetInfo } from '/js/sprites.js';
+import { DEFS } from '/shared/content.js'; import { BUILDINGS, INTERIORS } from '/shared/map.js';
+const q = new URLSearchParams(location.search); const what = q.get('what') || 'furniture'; const rot = +(q.get('rot') || 0); const on = q.get('on') === '1';
+await loadTileset(); const o = document.getElementById('o'); o.append(`tileset: ${JSON.stringify(tilesetInfo())}  `);
+const cell = (title, spr, w = 150, h = 150, f = 1) => { const d = document.createElement('div'); d.style.cssText = `display:inline-block;margin:4px;width:${w}px;height:${h + 14}px;background:#3a4668;border-radius:6px;position:relative;text-align:center;vertical-align:top`; const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.translate(w / 2, h * 0.7); c.scale(f, f); drawSprite(c, spr, 0, 0); d.append(cv, title); o.append(d); };
+if (what === 'furniture') for (const d of Object.values(DEFS)) if (d.type === 'furniture') cell(d.id, furnitureSprite(d.id, rot, on && (d.interact === 'toggle' || d.interact === 'music')), 150, 150, 1);
+if (what === 'things') { for (const t of [].concat(...Object.values(INTERIORS).map(i => i.things))) cell(t.k + (t.shop || t.machine || ''), thingSprite(t), 200, 190, 0.8); }
+if (what === 'buildings') for (const b of BUILDINGS) cell(b.id, buildingSprite(b), 330, 300, 0.5);
+if (what === 'trees') for (const v of [0, 1, 2]) cell('tree' + v, treeSprite(v), 120, 130);
+if (what === 'chars') { const looks = [{ body: 1, skin: 2, hairStyle: 1, hairColor: 1, topColor: 0, bottomColor: 6, shoeColor: 7, top: 'top_basic', bottom: 'bottom_basic', shoes: 'shoes_basic' }, { body: 0, skin: 5, hairStyle: 3, hairColor: 6, topColor: 4, bottomColor: 8, shoeColor: 2, full: 'top_dress', hat: 'hat_beret', glasses: 'gl_round' }, { body: 2, skin: 1, hairStyle: 5, hairColor: 7, topColor: 2, bottomColor: 6, shoeColor: 8, top: 'top_suit', bottom: 'bottom_slacks', hat: 'hat_top', back: 'back_wings', glasses: 'gl_sun' }, { body: 1, skin: 6, hairStyle: 4, hairColor: 0, topColor: 3, bottomColor: 1, shoeColor: 7, bottom: 'bottom_shorts', hat: 'hat_crown', back: 'back_pack', acc: 'acc_chain' }, { body: 1, skin: 3, hairStyle: 6, hairColor: 3, topColor: 5, bottomColor: 6, shoeColor: 7, hat: 'hat_cowboy', back: 'back_cape', top: 'top_hoodie', glasses: 'gl_star' }, { body: 1, skin: 4, hairStyle: 7, hairColor: 5, topColor: 9, bottomColor: 6, shoeColor: 7, hat: 'hat_party', top: 'top_tank', bottom: 'bottom_skirt' }]; for (const l of looks) { for (let d = 0; d < 4; d++) cell('dir' + d, characterSprite(l, d, d, false), 110, 150, 2); cell('sit', characterSprite(l, 0, 0, true), 110, 150, 2); o.append(document.createElement('br')); } }
+document.title = 'ready';
+</script>

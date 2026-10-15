@@ -10,6 +10,7 @@ import { installPanels } from './panels.js';
 import { installBuild } from './build.js';
 import { installCasino } from './casino-ui.js';
 import { installSocial } from './social-ui.js';
+import { loadTileset } from './sprites.js';
 
 const LS = (k, v) => v === undefined ? localStorage.getItem('casinete.' + k) : localStorage.setItem('casinete.' + k, v);
 const token = LS('token') || (() => { const t = Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join(''); LS('token', t); return t; })();
@@ -157,7 +158,7 @@ function onLoc(m) {
   if (m.snap.kind === 'home') { S.home = m.snap.home; S.role = m.snap.role; setupHomeSolid(); } else if (m.loc !== 'world') setupInterior(m.loc);
   addPlayer({ id: S.me.id, name: S.me.name, look: S.me.look, title: S.me.title, level: S.me.level, x: m.x, y: m.y, dir: 0 });
   for (const p of m.players) addPlayer(p); S.tables = m.tables || {};
-  world.cam.zoom = S.loc === 'world' ? 1.55 : Math.max(1.4, Math.min(2.4, Math.min(innerWidth / ((S.home?.w || S.world.interiors[S.loc].w) * 32 + 80), innerHeight / ((S.home?.h || S.world.interiors[S.loc].h) * 32 + 80)))) ;
+  world.cam.zoom = S.loc === 'world' ? 1.0 : Math.max(0.6, Math.min(1.5, Math.min((innerWidth - 80) / (((S.home?.w || S.world.interiors[S.loc].w) + (S.home?.h || S.world.interiors[S.loc].h)) * 32), (innerHeight - 140) / ((((S.home?.w || S.world.interiors[S.loc].w) + (S.home?.h || S.world.interiors[S.loc].h)) * 16) + 70))));
   for (const id of ['shop', 'prop', 'slots', 'roulette', 'blackjack', 'poker', 'horses', 'cashier', 'storage', 'salon', 'fish']) closePanel(id, true);
   if (S.buildMode) bus.emit('toggleBuild', 'off');
   setMusic(S.home ? 'home' : S.loc === 'world' ? 'world' : (S.world.interiors[S.loc]?.music || 'shop')); renderLoc(); bus.emit('loc', m);
@@ -165,6 +166,6 @@ function onLoc(m) {
 window.addEventListener('pointerdown', () => initAudio(), { once: true });
 
 installPanels(); installBuild(); installCasino(); installSocial();
-startWorld($('#cv'));
+loadTileset().finally(() => startWorld($('#cv')));   // use the baked PNG tileset when present, otherwise render sprites from the procedural models
 showMenu();
 window.__casinete = { S, cmd, world, bus };

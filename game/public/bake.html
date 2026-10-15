@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Casinete tileset baker</title>
+<body style="background:#222;color:#fff;font:12px system-ui">Baking is driven by tools/make-tileset.mjs (window.bake(scale)).
+<script type="module">
+import { tilesetJobs } from '/js/sprites.js';
+// Renders every static sprite and shelf-packs them into one atlas image + JSON index.
+window.bake = (scale = 2, pageW = 4096) => {
+  const list = []; for (const [key, make] of tilesetJobs(scale)) { const s = make(); list.push({ key, s }); }
+  list.sort((a, b) => b.s.sh - a.s.sh); const gap = 2; let x = 0, y = 0, rowH = 0; const sprites = {};
+  for (const it of list) { if (x + it.s.sw + gap > pageW) { x = 0; y += rowH + gap; rowH = 0; } it.px = x; it.py = y; x += it.s.sw + gap; rowH = Math.max(rowH, it.s.sh); }
+  const H = y + rowH + gap; const cv = Object.assign(document.createElement('canvas'), { width: pageW, height: H }); const c = cv.getContext('2d');
+  for (const it of list) { c.drawImage(it.s.img, it.px, it.py); sprites[it.key] = { x: it.px, y: it.py, w: it.s.sw, h: it.s.sh, ox: it.s.ox, oy: it.s.oy }; }
+  const singles = {}; if (window.__split) for (const it of list) singles[it.key] = it.s.img.toDataURL('image/png');
+  return { png: cv.toDataURL('image/png'), meta: { name: 'Casinete original isometric tileset', format: 1, scale, width: pageW, height: H, sprites }, singles };
+};
+document.title = 'ready';
+</script>

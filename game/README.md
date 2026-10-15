@@ -29,7 +29,7 @@ Disable dev tools in the Host panel to play "for real".
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| WASD / arrows / gamepad stick | Move | `E` | Interact (doors, shops, tables, furniture, NPCs) |
+| WASD / arrows / gamepad stick | Move (screen-relative, like Habbo: W = up the screen) | `E` | Interact (doors, shops, tables, furniture, NPCs) |
 | `B` | Build mode (inside a home you may edit) | `I` | Inventory / Wardrobe / Mailbox / Blueprints |
 | `Tab` | Phone (map, friends, party, catalog, directory, achievements…) | `G` or `1`–`9` | Emotes |
 | `Enter` | Chat (`/w name msg`, `/me`, `/dance`…) | `Esc` | Close panels / settings |
@@ -50,6 +50,21 @@ Build mode: pick furniture in the left drawer → click to place · `R`/`Q` rota
 8. **Casino (Lucky Mile, east)** — roulette (all 157 European bet spots; right-click a number for splits/corners), 2 slot machines with free spins and Town Jackpot, blackjack (double/split/insurance), Texas Hold'em (practice table with bots, or a Coins table with 2+ humans), horse races at Marigold Downs (odds, place/show/exacta). The **Cashier** has loss limits and cool-off.
 9. **Host panel (F2)** — *Integrity* must always say "coin & item conservation OK" no matter what you did. Try *Backup*, then stop the Host and start it again: everything is still there.
 
+## The isometric look (tileset)
+
+The game renders a **Habbo-style isometric view** (2:1 projection, depth-sorted sprites, cut-away walls) — there are no emoji in the world any more.
+Third-party tilesets could not be downloaded in the build environment, so Casinete ships an **original tileset generated from code**:
+
+* `public/js/models.js` (furniture), `props.js` (shops, casino tables, buildings, trees), `chars.js` (characters) describe every object as a handful of
+  boxes / cylinders / spheres; `iso.js` shades and depth-sorts them into sprites.
+* `npm run tileset` bakes the static sprites (278 of them: every furniture piece in 4 rotations + on/off states, buildings, trees, tables…) into
+  `public/assets/tileset.png` + `tileset.json` (2× resolution; add `-- --split` for one PNG per sprite in `public/assets/sprites/`).
+  The client loads that atlas when it exists and otherwise renders the same models live, so deleting `public/assets/` still works.
+* **Swapping in your own art:** replace `tileset.png` and edit the rectangles / anchors in `tileset.json` (`x,y,w,h` = sheet rectangle, `ox,oy` = where the
+  tile's top-left corner sits relative to the sprite, `scale` = sheet pixels per game pixel). Keys look like `f:sofa_3:0:0` (furniture id, rotation, on?),
+  `b:casino`, `tree:1`, `t:roulette::4x3`. Characters stay procedural because they are recoloured per player.
+* Visual checks: `node test/preview-shots.mjs /tmp/prev` (contact sheets of every sprite) and `node test/outdoor-shots.mjs /tmp/town` (tour of the districts).
+
 ## Tests
 
 ```bash
@@ -67,8 +82,8 @@ a 5-card/7-card evaluator check against the known hand counts, scripted blackjac
 | Area | Status in this prototype |
 |---|---|
 | Host/Client over LAN, join code, password, max players, kick/ban/mute | ✅ (WebSocket; Host authoritative; per-player token identity) |
-| Open world: 7 districts, 13 buildings, 5 public interiors, tram-less single map, day/night, minimap | ✅ (2D top-down; ~64×44 tiles) |
-| Character creator, wardrobe, salon, free+purchasable cosmetics, rarity, try-on, validation of ownership | ✅ (procedurally drawn avatars; no tattoos/makeup/facial hair) |
+| Open world: 7 districts, 13 buildings, 5 public interiors, tram-less single map, day/night, minimap | ✅ (isometric 2.5D, Habbo-style; ~64×44 tiles) |
+| Character creator, wardrobe, salon, free+purchasable cosmetics, rarity, try-on, validation of ownership | ✅ (isometric blocky avatars with 4 facings + walk/sit animation; no tattoos/makeup/facial hair) |
 | Housing: buy/sell/transfer, 8 lots (studio→mansion), upgrades, upkeep→dusty, roles, access modes, doorbell, invites, bans, capacity, rules, likes, style score, directory | ✅ |
 | Building: walls/doors/windows, floors, wall colours, furniture (53 pieces, 18 categories) and 30 cosmetics, rotate/move/remove, collision & wall/rug layers, object cap, undo/redo, multi-select, copy/paste, blueprints with bill of materials, storage furniture, sit/lie/toggle interactions | ✅ (single floor; grid placement only — no stairs, free-placement mode, stacking or wiring) |
 | Collaboration: edit leases, live ghosts, revision checks, audit log, items return to contributors | ✅ |
@@ -80,7 +95,7 @@ a 5-card/7-card evaluator check against the known hand counts, scripted blackjac
 | Persistence: sectioned world files, hash manifest, hash-chained journal, rotating backups, corruption recovery, migrations | ✅ (JSON files instead of SQLite) |
 | NPCs: shopkeepers, dealers, cashier, agent, courier, guide (dialogue + actions) | ✅ (stationary; no ambient crowds / schedules) |
 | Audio: procedural SFX + music with independent bus sliders | ✅ (synthesised; no recorded assets) |
-| Not built (designed only): 3D art, multi-floor/stairs, yards, vehicles, pets, photo mode, wiring contraptions, voice, Relay/online invites, dedicated server, passport export, Unity port | 📄 see `../docs` |
+| Not built (designed only): true 3D models, multi-floor/stairs, yards, vehicles, pets, photo mode, wiring contraptions, voice, Relay/online invites, dedicated server, passport export, Unity port | 📄 see `../docs` |
 
 ## Mapping to the design
 

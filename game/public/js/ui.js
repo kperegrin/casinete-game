@@ -1,4 +1,5 @@
 import { S, bus, fmt } from './state.js';
+import { itemThumb } from './sprites.js';
 import { DEFS, RARITY_COLOR } from '/shared/content.js';
 export function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -44,7 +45,7 @@ export function itemCard(d, { qty, price, own, onClick, sel, extra, fav, onFav }
   const def = DEFS[d] || { emoji: '❓', name: d, rarity: 'common' };
   return h('div', { class: 'item rar-' + def.rarity + (sel ? ' sel' : ''), title: `${def.name} (${def.rarity})${def.w ? ` — ${def.w}×${def.h}` : ''}`, onclick: onClick },
     qty > 1 ? h('span', { class: 'qty' }, '×' + qty) : null, own ? h('span', { class: 'own' }, '✓ ' + own) : null,
-    h('div', { class: 'em', style: def.color ? { filter: 'none' } : {} }, def.emoji), h('div', { class: 'nm' }, def.name), price != null ? h('div', { class: 'pr' }, '🪙 ' + fmt(price)) : null, extra,
+    h('div', { class: 'em', style: def.color ? { filter: 'none' } : {} }, itemThumb(d) || def.emoji), h('div', { class: 'nm' }, def.name), price != null ? h('div', { class: 'pr' }, '🪙 ' + fmt(price)) : null, extra,
     onFav ? h('span', { class: 'fav' + (fav ? ' on' : ''), onclick: (e) => { e.stopPropagation(); onFav(); } }, '★') : null);
 }
 export const rarityChip = (r) => h('span', { class: 'chip', style: { background: RARITY_COLOR[r] + '66' } }, r);

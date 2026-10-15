@@ -40,8 +40,8 @@ test('property purchase, shop, placement, rotation, removal, ownership permissio
   r = await a.cmd('shop.buy', { shop: 'furn', def: 'lamp_floor', qty: 1 }); assert.ok(r.ok);
   await sleep(50);
   assert.equal(game.state.players[a.me.id].coins, base - 1040 - 70);
-  // go home (door at top of Sunny Row #1 -> enter via command)
-  place(game, a, 'world', 4.5, 22.4); await sleep(30);
+  // go home (door on the front of Sunny Row #1 -> enter via command)
+  place(game, a, 'world', 4.5, 27.4); await sleep(30);
   r = await a.cmd('enter', { id: 'h1' }); assert.ok(r.ok, JSON.stringify(r)); assert.equal(a.loc, 'home:h1');
   const sofas = game.state.players ? [...Object.values(game.state.items)].filter(i => i.d === 'sofa_3' && i.loc === 'inv:' + a.me.id) : [];
   const lamp = Object.values(game.state.items).find(i => i.d === 'lamp_floor');
@@ -53,7 +53,7 @@ test('property purchase, shop, placement, rotation, removal, ownership permissio
   r = await a.cmd('h.place', { item: lamp.id, x: 1, y: 1, rot: 0 }); assert.ok(r.ok);
   r = await a.cmd('h.move', { id: sofas[0].id, x: 2, y: 1, rot: 1 }); assert.ok(r.ok); assert.equal(r.obj.rot, 1);
   // Bob (visitor) enters and cannot edit
-  place(game, b, 'world', 4.5, 22.4); await sleep(30);
+  place(game, b, 'world', 4.5, 27.4); await sleep(30);
   r = await b.cmd('enter', { id: 'h1' }); assert.ok(r.ok);
   r = await b.cmd('h.remove', { id: sofas[0].id }); assert.equal(r.err, 'no_permission');
   r = await b.cmd('h.move', { id: sofas[0].id, x: 3, y: 3, rot: 0 }); assert.equal(r.err, 'no_permission');

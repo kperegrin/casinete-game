@@ -25,13 +25,13 @@ export const BUILDINGS = [
   { id: 'hall', name: 'Town Hall', x: 19, y: 6, w: 7, h: 6, door: [22, 11], to: 'townhall', color: '#e9e2d0', roof: '#7a6a4d' },
   { id: 'casino', name: 'Grand Marigold Casino', x: 40, y: 22, w: 12, h: 7, door: [45, 28], to: 'casino', color: '#2a2f55', roof: '#c9a227' },
   { id: 'track', name: 'Marigold Downs', x: 55, y: 22, w: 7, h: 6, door: [58, 27], to: 'track', color: '#4c8a4c', roof: '#7d4f2a' },
-  // houses (door tile is part of building rect)
-  { id: 'h1', name: 'Sunny Row #1', x: 2, y: 23, w: 6, h: 4, door: [4, 23], to: 'home:h1', color: '#ffd1a8', roof: '#d9714f' },
-  { id: 'h2', name: 'Sunny Row #2', x: 9, y: 23, w: 6, h: 4, door: [11, 23], to: 'home:h2', color: '#c8e6c9', roof: '#4f9d6b' },
-  { id: 'h3', name: 'Sunny Row #3', x: 16, y: 23, w: 6, h: 4, door: [18, 23], to: 'home:h3', color: '#bbdefb', roof: '#3f6fb5' },
-  { id: 'h4', name: 'Sunny Row #4', x: 23, y: 23, w: 5, h: 4, door: [25, 23], to: 'home:h4', color: '#f8bbd0', roof: '#b04a73' },
-  { id: 'h5', name: 'Maple House', x: 2, y: 30, w: 7, h: 4, door: [5, 30], to: 'home:h5', color: '#ffe0b2', roof: '#a1572b' },
-  { id: 'h6', name: 'Maple House II', x: 11, y: 30, w: 7, h: 4, door: [14, 30], to: 'home:h6', color: '#d7ccc8', roof: '#6d4c41' },
+  // houses (door tile is part of building rect; doors face the viewer = bottom edge, like every other building)
+  { id: 'h1', name: 'Sunny Row #1', x: 2, y: 23, w: 6, h: 4, door: [4, 26], to: 'home:h1', color: '#ffd1a8', roof: '#d9714f' },
+  { id: 'h2', name: 'Sunny Row #2', x: 9, y: 23, w: 6, h: 4, door: [11, 26], to: 'home:h2', color: '#c8e6c9', roof: '#4f9d6b' },
+  { id: 'h3', name: 'Sunny Row #3', x: 16, y: 23, w: 6, h: 4, door: [18, 26], to: 'home:h3', color: '#bbdefb', roof: '#3f6fb5' },
+  { id: 'h4', name: 'Sunny Row #4', x: 23, y: 23, w: 5, h: 4, door: [25, 26], to: 'home:h4', color: '#f8bbd0', roof: '#b04a73' },
+  { id: 'h5', name: 'Maple House', x: 2, y: 30, w: 7, h: 4, door: [5, 33], to: 'home:h5', color: '#ffe0b2', roof: '#a1572b' },
+  { id: 'h6', name: 'Maple House II', x: 11, y: 30, w: 7, h: 4, door: [14, 33], to: 'home:h6', color: '#d7ccc8', roof: '#6d4c41' },
   { id: 'c1', name: 'Crest Villa', x: 42, y: 3, w: 10, h: 6, door: [46, 8], to: 'home:c1', color: '#fff3e0', roof: '#8d6e63' },
   { id: 'c2', name: 'Crest Mansion', x: 53, y: 2, w: 9, h: 7, door: [57, 8], to: 'home:c2', color: '#f3e5f5', roof: '#6a1b9a' },
 ];

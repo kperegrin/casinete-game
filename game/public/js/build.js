@@ -2,11 +2,12 @@
 import { S, bus, fmt } from './state.js';
 import { cmd, sendRaw, errText } from './net.js';
 import { h, $, toast, openPanel, closePanel, rerender, panelOpen, itemCard, confirmBox, promptBox } from './ui.js';
-import { world, screenToTile, setupHomeSolid } from './world.js';
-import { drawFurniture } from './art.js';
+import { world, screenToTile, setupHomeSolid, drawFurnGhost } from './world.js';
+import { P } from './iso.js';
+import { diamond, wallSprite, WALL_LOW } from './isoworld.js';
+import { drawSprite } from './sprites.js';
 import { sfx } from './audio.js';
 import { DEFS, ROLE_CAPS, WALL_COST, DOOR_COST, WINDOW_COST, FLOOR_COLORS, WALL_COLORS } from '/shared/content.js';
-import { T } from './art.js';
 import { openShop } from './panels.js';
 
 const B = { tool: 'select', held: null, rot: 0, floor: 0, sel: new Set(), undo: [], redo: [], drag: null, marquee: null, rect: null, clip: null, paste: null, pending: new Set(), q: '', cat: 'All', bp: null, lastSend: 0 };
@@ -94,7 +95,8 @@ function onHomeMsg(m) {
 
 // ---------------- input ----------------
 let mouseTile = { x: 0, y: 0, fx: 0, fy: 0 };
-function onMove(e) { if (!S.buildMode) return; const { fx, fy } = screenToTile(e.clientX, e.clientY); mouseTile = { x: Math.floor(fx), y: Math.floor(fy), fx, fy }; if (B.drag) { B.drag.cur = mouseTile; const now = performance.now(); if (now - B.lastSend > 100) { B.lastSend = now; for (const m of B.drag.items) sendRaw({ t: 'drag', id: m.id, x: m.ox + (mouseTile.x - B.drag.start.x), y: m.oy + (mouseTile.y - B.drag.start.y), rot: m.rot }); } } if (B.marquee) B.marquee.cur = mouseTile; if (B.rect) B.rect.cur = mouseTile; }
+const mouseRaw = { x: 0, y: 0 };
+function onMove(e) { mouseRaw.x = e.clientX; mouseRaw.y = e.clientY; if (!S.buildMode) return; const { fx, fy } = screenToTile(e.clientX, e.clientY); mouseTile = { x: Math.floor(fx), y: Math.floor(fy), fx, fy }; if (B.drag) { B.drag.cur = mouseTile; const now = performance.now(); if (now - B.lastSend > 100) { B.lastSend = now; for (const m of B.drag.items) sendRaw({ t: 'drag', id: m.id, x: m.ox + (mouseTile.x - B.drag.start.x), y: m.oy + (mouseTile.y - B.drag.start.y), rot: m.rot }); } } if (B.marquee) B.marquee.cur = mouseTile; if (B.rect) B.rect.cur = mouseTile; }
 const ghostPos = (d, rot) => { const s = size(d, rot); return { x: Math.round(mouseTile.fx - s.w / 2), y: Math.round(mouseTile.fy - s.h / 2) }; };
 function objAt(tx, ty) { let best = null; for (const o of S.home.objects) { const df = DEFS[o.d]; for (const [a, b] of tilesOf(o.d, o.x, o.y, o.rot, df.layer === 'wall')) if (a === tx && b === ty) { const pri = df.layer === 'floor' ? 3 : df.layer === 'wall' ? 2 : 1; if (!best || pri > best.pri) best = { o, pri }; } } return best?.o || null; }
 
@@ -108,7 +110,7 @@ async function handleClick() {
   if (B.paste) { await doPaste(); return true; }
   if (B.bp) { await applyBp(); return true; }
   if (B.tool === 'door' || B.tool === 'window') { const r = await cmd('h.wall', { x, y, type: B.tool === 'door' ? 2 : 3 }); if (!r.ok) toast(errText(r), 'warn'); else sfx('place'); return true; }
-  if (B.tool === 'erase') { const o = objAt(x, y); if (o) { await removeObj(o); return true; } const r = await cmd('h.wall', { x, y, type: 0 }); if (r.ok) sfx('remove'); else if (r.err !== 'tile_occupied') toast(errText(r), 'warn'); return true; }
+  if (B.tool === 'erase') { const pk = world.pickFurniture(mouseRaw.x, mouseRaw.y); const o = (pk != null ? objById(pk) : null) || objAt(x, y); if (o) { await removeObj(o); return true; } const r = await cmd('h.wall', { x, y, type: 0 }); if (r.ok) sfx('remove'); else if (r.err !== 'tile_occupied') toast(errText(r), 'warn'); return true; }
   return false;
 }
 async function placeHeld() {
@@ -167,7 +169,7 @@ function onDown(e) {
 async function startDown(e) {
   const { x, y } = mouseTile;
   if (B.tool === 'select') {
-    const o = objAt(x, y);
+    const pk = world.pickFurniture(e.clientX, e.clientY); const o = (pk != null ? objById(pk) : null) || objAt(x, y);
     if (o) {
       if (e.shiftKey) { B.sel.has(o.id) ? B.sel.delete(o.id) : B.sel.add(o.id); B.suppressClick = true; return true; }
       if (!B.sel.has(o.id)) { B.sel.clear(); B.sel.add(o.id); }
@@ -219,21 +221,27 @@ async function applyBp() {
   if (r.ok) { sfx('place'); toast(`Blueprint applied: ${r.placed} items${r.skipped ? `, ${r.skipped} skipped` : ''}`, 'good'); } else toast(errText(r) + (r.d ? ` (${DEFS[r.d]?.name})` : ''), 'warn');
 }
 
-// ---------------- overlay ----------------
+// ---------------- overlay (isometric) ----------------
 function overlay(c, now) {
-  if (!S.buildMode || !S.home) return; const home = S.home;
-  c.strokeStyle = '#ffffff22'; c.lineWidth = 1; for (let x = 0; x <= home.w; x++) { c.beginPath(); c.moveTo(x * T, 0); c.lineTo(x * T, home.h * T); c.stroke(); } for (let y = 0; y <= home.h; y++) { c.beginPath(); c.moveTo(0, y * T); c.lineTo(home.w * T, y * T); c.stroke(); }
-  const { x, y } = mouseTile;
-  const tileBox = (tx, ty, col) => { c.fillStyle = col; c.fillRect(tx * T, ty * T, T, T); };
-  if (B.tool === 'place' && B.held && !B.drag) { const g = ghostPos(B.held, B.rot); const bad = check(B.held, g.x, g.y, B.rot); drawFurniture(c, B.held, g.x * T, g.y * T, B.rot, { ghost: 1, tint: bad ? '#ff2a2a66' : '#2aff6a44' }); if (bad) { c.font = '700 12px Nunito'; c.fillStyle = '#fff'; c.textAlign = 'left'; c.fillText(bad, g.x * T, g.y * T - 6); } }
-  else if (B.paste) { const base = { x, y }; for (const it of B.paste.items) { const bad = check(it.d, base.x + it.dx, base.y + it.dy, it.rot); drawFurniture(c, it.d, (base.x + it.dx) * T, (base.y + it.dy) * T, it.rot, { ghost: 1, tint: bad ? '#ff2a2a66' : '#2aff6a44' }); } }
-  else if (B.bp) { for (const it of B.bp.bp.items) drawFurniture(c, it.d, (x + it.x) * T, (y + it.y) * T, it.rot, { ghost: 1 }); c.strokeStyle = '#f2a93b'; c.lineWidth = 2; c.strokeRect(x * T, y * T, B.bp.bp.w * T, B.bp.bp.h * T); }
-  else if (['wall', 'door', 'window', 'erase', 'floor'].includes(B.tool) && !B.rect) tileBox(x, y, B.tool === 'erase' ? '#ff4a4a55' : '#ffffff44');
-  if (B.drag) { const dx = mouseTile.x - B.drag.start.x, dy = mouseTile.y - B.drag.start.y; const ign = new Set(B.drag.items.map(m => m.id)); for (const m of B.drag.items) { const bad = check(m.d, m.ox + dx, m.oy + dy, m.rot, ign); drawFurniture(c, m.d, (m.ox + dx) * T, (m.oy + dy) * T, m.rot, { ghost: 1, sel: true, tint: bad ? '#ff2a2a66' : null }); } }
-  if (B.marquee) { const m = B.marquee; c.strokeStyle = '#f2a93b'; c.fillStyle = '#f2a93b22'; c.lineWidth = 2; const x0 = Math.min(m.start.x, m.cur.x), y0 = Math.min(m.start.y, m.cur.y); c.fillRect(x0 * T, y0 * T, (Math.abs(m.cur.x - m.start.x) + 1) * T, (Math.abs(m.cur.y - m.start.y) + 1) * T); c.strokeRect(x0 * T, y0 * T, (Math.abs(m.cur.x - m.start.x) + 1) * T, (Math.abs(m.cur.y - m.start.y) + 1) * T); }
-  if (B.rect) { const r = B.rect; const x0 = Math.min(r.start.x, r.cur.x), x1 = Math.max(r.start.x, r.cur.x), y0 = Math.min(r.start.y, r.cur.y), y1 = Math.max(r.start.y, r.cur.y); c.lineWidth = 2;
-    if (B.tool === 'wall') { c.fillStyle = '#9aa0b6aa'; const hollow = r.shift; let n = 0; if (hollow) { for (let tx = x0; tx <= x1; tx++) for (let ty = y0; ty <= y1; ty++) if (tx === x0 || tx === x1 || ty === y0 || ty === y1) { c.fillRect(tx * T, ty * T, T, T); n++; } } else if (Math.abs(r.cur.x - r.start.x) >= Math.abs(r.cur.y - r.start.y)) { for (let tx = x0; tx <= x1; tx++) { c.fillRect(tx * T, r.start.y * T, T, T); n++; } } else for (let ty = y0; ty <= y1; ty++) { c.fillRect(r.start.x * T, ty * T, T, T); n++; } c.fillStyle = '#fff'; c.font = '700 12px Nunito'; c.fillText(`${n} walls · 🪙${n * WALL_COST}${hollow ? '' : ' (hold Shift for a room outline)'}`, x0 * T, y0 * T - 6); }
-    else { c.strokeStyle = B.tool === 'floor' ? '#fff' : '#f2a93b'; if (B.tool === 'floor') { c.fillStyle = FLOOR_COLORS[B.floor] + 'aa'; c.fillRect(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T); } c.strokeRect(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T); } }
-  for (const [id, by] of S.leases) { if (by === S.me.id) continue; const o = objById(id); if (!o) continue; const nm = S.players.get(by)?.name || '?'; c.fillStyle = '#f26b5b'; c.font = '700 11px Nunito'; c.textAlign = 'left'; c.fillText('✋ ' + nm, o.x * T, o.y * T - 4); }
-  for (const [id, g] of S.dragGhosts) { const nm = S.players.get(g.by)?.name || '?'; c.fillStyle = '#2bb3a3'; c.font = '700 11px Nunito'; c.textAlign = 'left'; c.fillText('✋ ' + nm, g.x * T, g.y * T - 4); }
+  if (!S.buildMode || !S.home) return; const home = S.home; c.lineJoin = 'round';
+  c.strokeStyle = 'rgba(255,255,255,.16)'; c.lineWidth = 1; c.beginPath();
+  for (let x = 0; x <= home.w; x++) { c.moveTo(...P(x, 0)); c.lineTo(...P(x, home.h)); } for (let y = 0; y <= home.h; y++) { c.moveTo(...P(0, y)); c.lineTo(...P(home.w, y)); } c.stroke();
+  const { x, y } = mouseTile; const tileBox = (tx, ty, col) => { diamond(c, tx, ty); c.fillStyle = col; c.fill(); };
+  const rectOf = (m) => ({ x0: Math.min(m.start.x, m.cur.x), x1: Math.max(m.start.x, m.cur.x), y0: Math.min(m.start.y, m.cur.y), y1: Math.max(m.start.y, m.cur.y) });
+  const label = (txt, tx, ty, col = '#fff') => { const [X, Y] = P(tx, ty, 48); c.font = '700 12px Nunito'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeText(txt, X, Y); c.fillStyle = col; c.fillText(txt, X, Y); };
+  if (B.tool === 'place' && B.held && !B.drag) { const g = ghostPos(B.held, B.rot); const bad = check(B.held, g.x, g.y, B.rot); drawFurnGhost(c, B.held, g.x, g.y, B.rot, { tint: bad ? 'rgba(255,42,42,.4)' : 'rgba(42,255,106,.3)' }); if (bad) label(bad, g.x, g.y); }
+  else if (B.paste) { for (const it of B.paste.items) { const bad = check(it.d, x + it.dx, y + it.dy, it.rot); drawFurnGhost(c, it.d, x + it.dx, y + it.dy, it.rot, { tint: bad ? 'rgba(255,42,42,.4)' : 'rgba(42,255,106,.3)' }); } }
+  else if (B.bp) { for (const it of B.bp.bp.items) drawFurnGhost(c, it.d, x + it.x, y + it.y, it.rot, {}); c.strokeStyle = '#f2a93b'; c.lineWidth = 2; diamond(c, x, y, B.bp.bp.w, B.bp.bp.h); c.stroke(); }
+  else if (['wall', 'door', 'window', 'erase', 'floor'].includes(B.tool) && !B.rect) tileBox(x, y, B.tool === 'erase' ? 'rgba(255,74,74,.4)' : 'rgba(255,255,255,.3)');
+  if (B.drag) { const dx = mouseTile.x - B.drag.start.x, dy = mouseTile.y - B.drag.start.y; const ign = new Set(B.drag.items.map(m => m.id)); for (const m of B.drag.items) { const bad = check(m.d, m.ox + dx, m.oy + dy, m.rot, ign); drawFurnGhost(c, m.d, m.ox + dx, m.oy + dy, m.rot, { sel: true, tint: bad ? 'rgba(255,42,42,.4)' : 'rgba(255,255,255,.12)' }); } }
+  if (B.marquee) { const r = rectOf(B.marquee); c.strokeStyle = '#f2a93b'; c.fillStyle = 'rgba(242,169,59,.16)'; c.lineWidth = 2; diamond(c, r.x0, r.y0, r.x1 - r.x0 + 1, r.y1 - r.y0 + 1); c.fill(); c.stroke(); }
+  if (B.rect) { const r = rectOf(B.rect); c.lineWidth = 2;
+    if (B.tool === 'wall') {
+      const ws = wallSprite(WALL_COLORS[home.wallColor || 0], 1, WALL_LOW); const cells = []; const hollow = B.rect.shift;
+      if (hollow) { for (let tx = r.x0; tx <= r.x1; tx++) for (let ty = r.y0; ty <= r.y1; ty++) if (tx === r.x0 || tx === r.x1 || ty === r.y0 || ty === r.y1) cells.push([tx, ty]); } else if (Math.abs(B.rect.cur.x - B.rect.start.x) >= Math.abs(B.rect.cur.y - B.rect.start.y)) { for (let tx = r.x0; tx <= r.x1; tx++) cells.push([tx, B.rect.start.y]); } else for (let ty = r.y0; ty <= r.y1; ty++) cells.push([B.rect.start.x, ty]);
+      cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1])); for (const [tx, ty] of cells) { const [X, Y] = P(tx, ty); drawSprite(c, ws, X, Y, 0.7); }
+      label(`${cells.length} walls · 🪙${cells.length * WALL_COST}${hollow ? '' : ' (hold Shift for a room outline)'}`, r.x0, r.y0);
+    } else { c.strokeStyle = B.tool === 'floor' ? '#fff' : '#f2a93b'; diamond(c, r.x0, r.y0, r.x1 - r.x0 + 1, r.y1 - r.y0 + 1); if (B.tool === 'floor') { c.fillStyle = FLOOR_COLORS[B.floor] + 'cc'; c.fill(); } c.stroke(); } }
+  for (const [id, by] of S.leases) { if (by === S.me.id) continue; const o = objById(id); if (!o) continue; label('✋ ' + (S.players.get(by)?.name || '?'), o.x, o.y, '#f26b5b'); }
+  for (const [id, g] of S.dragGhosts) { const o = objById(id); if (o) drawFurnGhost(c, o.d, g.x, g.y, g.rot, { tint: 'rgba(43,179,163,.35)' }); label('✋ ' + (S.players.get(g.by)?.name || '?'), g.x, g.y, '#2bb3a3'); }
 }
