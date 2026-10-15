@@ -1,7 +1,7 @@
 name: Build Windows .exe and attach to release
 
 # Runs when this file changes on a branch (first publication), when a v* tag is pushed, or manually
-# (Actions → "Build Windows .exe…" → Run workflow → choose the release tag).
+# (Actions → "Build Windows .exe…" → Run workflow → choose the release tag). Re-uploading replaces the existing Casinete.exe asset (--clobber).
 on:
   workflow_dispatch:
     inputs:
