@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-exe-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   exe:
     runs-on: ubuntu-latest
