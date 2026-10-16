@@ -8,8 +8,12 @@
     "start": "node server/index.js",
     "e2e": "node test/e2e.mjs && node test/e2e2.mjs",
     "slotsim": "node tools/slotsim.js",
+    "tileset": "node tools/make-tileset.mjs",
+    "bake:preview": "node tools/bake-preview.mjs",
     "start:fast": "node server/index.js --fast",
-    "start:lan": "node server/index.js --port 3000"
+    "start:lan": "node server/index.js --port 3000",
+    "build:exe": "node tools/build-exe.mjs --target win",
+    "build:linux": "node tools/build-exe.mjs --target linux"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +23,10 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "playwright-core": "1.56.1"
+    "esbuild": "^0.28.2",
+    "playwright-core": "1.56.1",
+    "pngjs": "^7.0.0",
+    "postject": "^1.0.0-alpha.6",
+    "three": "^0.170.0"
   }
 }

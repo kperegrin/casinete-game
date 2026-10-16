@@ -103,8 +103,8 @@ test('property lifecycle: free first studio, buy, upgrade, upkeep arrears -> dus
 
 test('access control: locked/invite-only homes, bans, doorbell, capacity, blueprint atomic apply', async (t) => {
   const { game, bots: [a, b, c] } = await setup(t, ['Owner', 'Guest', 'Pal']); place(game, a, 'townhall', 7.5, 5); await a.cmd('prop.buy', { id: 'h1' });
-  const enter = async (bot) => { place(game, bot, 'world', 4.5, 22.3); await sleep(30); return bot.cmd('enter', { id: 'h1' }); };
-  assert.ok((await enter(b)).ok); await b.cmd('exit').catch(() => {}); place(game, b, 'world', 4.5, 22.3);
+  const enter = async (bot) => { place(game, bot, 'world', 4.5, 27.3); await sleep(30); return bot.cmd('enter', { id: 'h1' }); };
+  assert.ok((await enter(b)).ok); await b.cmd('exit').catch(() => {}); place(game, b, 'world', 4.5, 27.3);
   await a.cmd('prop.access', { id: 'h1', mode: 'locked' }); assert.equal((await enter(b)).err, 'locked');
   await a.cmd('prop.access', { id: 'h1', mode: 'invite' }); const ring = await enter(b); assert.equal(ring.err, 'invite_only');
   assert.ok((await b.cmd('prop.ring', { id: 'h1' })).ok); const bell = await a.waitFor(m => m.t === 'doorbell'); assert.ok((await a.cmd('prop.answer', { prop: 'h1', pid: bell.fromId, accept: true })).ok); await b.waitFor(m => m.t === 'invite');

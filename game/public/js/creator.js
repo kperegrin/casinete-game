@@ -8,7 +8,7 @@ export const randomLook = () => { const r = (n) => Math.floor(Math.random() * n)
 // Character creator widget. look is mutated live; `onChange` fires on every edit.
 export function creatorWidget(look, { onChange, appearanceOnly = true } = {}) {
   const cv = h('canvas', { width: 260, height: 330, class: 'avatar-prev' }); const dirs = [0, 1, 2, 3]; let d = 0, t0 = 0;
-  const draw = () => { const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 260, 330); c.save(); c.translate(130, 285); c.scale(4.6, 4.6); drawChar(c, look, 0, 0, { dir: d, walk: 0 }); c.restore(); };
+  const draw = () => { const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 260, 330); c.save(); c.translate(130, 300); c.scale(6.4, 6.4); drawChar(c, look, 0, 0, { dir: d, walk: 0 }); c.restore(); };
   const changed = () => { draw(); onChange?.(look); }; changed();
   const sw = (arr, key) => h('div', { class: 'swatches' }, arr.map((col, i) => h('div', { class: 'sw' + (look[key] === i ? ' on' : ''), style: { background: col }, onclick: (e) => { look[key] = i; e.target.parentNode.querySelectorAll('.sw').forEach((s, j) => s.classList.toggle('on', j === i)); changed(); } })));
   const opts = (items, key) => h('div', { class: 'row wrap' }, items.map((n, i) => h('button', { class: 'tab' + (look[key] === i ? ' on' : ''), onclick: (e) => { look[key] = i; e.target.parentNode.querySelectorAll('.tab').forEach((s, j) => s.classList.toggle('on', j === i)); changed(); } }, n)));

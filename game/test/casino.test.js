@@ -48,9 +48,9 @@ test('slots: paid spin, free spins pending persists, jackpot feed, coins conserv
 test('blackjack: full round with a real client; stand/hit; settle exactly; dealer hole card hidden until reveal', async (t) => {
   const { game, bots: [a] } = await setup(t); place(game, a, 'casino', 17.5, 7.5); await sleep(30);
   let r = await a.cmd('bj.sit', { table: 'bj1', seat: 2 }); assert.ok(r.ok, JSON.stringify(r));
+  const before = game.state.players[a.me.id].coins;                      // measured BEFORE betting: a natural blackjack settles instantly on the deal
   r = await a.cmd('bj.bet', { table: 'bj1', amount: 100 }); assert.ok(r.ok);
   const deal = await a.waitFor(m => m.t === 'tev' && m.table === 'bj1' && m.ev.k === 'deal'); assert.equal(deal.ev.dealer[1], -1, 'hole card hidden');
-  const before = game.state.players[a.me.id].coins;
   // play: stand whenever it's our turn
   for (let i = 0; i < 30; i++) {
     const t0 = game.tables.bj1; if (t0.phase === 'settle' || t0.phase === 'idle') break;
@@ -61,7 +61,7 @@ test('blackjack: full round with a real client; stand/hit; settle exactly; deale
   const settle = await a.waitFor(m => m.t === 'tev' && m.table === 'bj1' && m.ev.k === 'settle', 4000);
   assert.equal(settle.ev.dealer.length >= 2, true); const res = settle.ev.results[a.me.id];
   assert.ok(['win', 'lose', 'push', 'blackjack'].includes(res.res[0]));
-  assert.equal(game.state.players[a.me.id].coins - before, res.ret);          // bet was already debited
+  assert.equal(game.state.players[a.me.id].coins - before, res.ret - 100);   // bet debited, payout credited, nothing else
   assert.ok(audit(game.state).ok);
 });
 

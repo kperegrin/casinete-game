@@ -1,3 +1,5 @@
 node_modules/
 saves/
 *.log
+build/
+dist/
