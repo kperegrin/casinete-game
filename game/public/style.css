@@ -4,14 +4,15 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:"Nunito","Segoe UI",s
 button,input,select,textarea{font:inherit;color:inherit}
 canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 .hidden{display:none!important}
-.screen{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 20% 10%,#ffd98e 0%,#f2a93b55 35%,transparent 60%),linear-gradient(160deg,#1f2a44,#3a2c6b 55%,#2bb3a3)}
+.screen{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(1100px 650px at 50% 45%,#1f2a4422 0%,#1f2a4499 70%,#141a2ccc 100%);backdrop-filter:saturate(1.1)}
+.screen>.card,.screen>.col>.card{background:#fffaf0f2;backdrop-filter:blur(6px);border:1px solid #fff8}
 .card{background:var(--card);border-radius:var(--r);box-shadow:0 10px 30px #0006;padding:18px 20px}
 .btn{background:var(--marigold);border:0;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 #b87a14;transition:transform .05s}
 .btn:hover{filter:brightness(1.07)}.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #b87a14}
 .btn.alt{background:var(--lagoon);box-shadow:0 3px 0 #1a7e72;color:#fff}.btn.bad{background:var(--bad);box-shadow:0 3px 0 #9c2327;color:#fff}.btn.ghost{background:#0000;box-shadow:none;border:2px solid #0002}
 .btn.sm{padding:4px 9px;font-size:.85rem;border-radius:8px}.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
 h1,h2,h3{margin:.2em 0}
-.title{font-size:3rem;font-weight:900;color:var(--cream);text-shadow:0 4px 0 #0005;letter-spacing:.02em}
+.title{font-size:3.4rem;font-weight:900;letter-spacing:.02em;background:linear-gradient(180deg,#fff6d8 0%,#ffd76a 55%,#f2a93b 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 #7a4a10) drop-shadow(0 8px 14px #0008)}
 .row{display:flex;gap:8px;align-items:center}.col{display:flex;flex-direction:column;gap:8px}.grow{flex:1}.wrap{flex-wrap:wrap}
 input[type=text],input[type=password],input[type=number],select,textarea{background:#fff;border:2px solid #0002;border-radius:9px;padding:7px 10px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--lagoon)}

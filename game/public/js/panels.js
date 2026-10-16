@@ -1,3 +1,4 @@
+import { itemThumb } from './sprites.js';
 // Inventory, shops, Town Hall, property management, settings, phone, host panel, misc dialogs.
 import { S, bus, fmt, saveSettings } from './state.js';
 import { cmd, errText, disconnect } from './net.js';
@@ -49,7 +50,7 @@ export function openInventory(tab) {
 }
 function invDetail(d, arr) {
   const def = DEFS[d]; const it = arr[0];
-  return h('div', { class: 'card col', style: { padding: '12px' } }, h('div', { style: { fontSize: '54px', textAlign: 'center' } }, def.emoji), h('b', {}, def.name), h('div', {}, rarityChip(def.rarity), ' ', def.type), def.w ? h('div', { class: 'muted' }, `Size ${def.w}×${def.h} · ${def.layer}${def.interact ? ' · ' + def.interact : ''}`) : null,
+  return h('div', { class: 'card col', style: { padding: '12px' } }, h('div', { style: { fontSize: '54px', textAlign: 'center' } }, itemThumb(def.id, 110) || def.emoji), h('b', {}, def.name), h('div', {}, rarityChip(def.rarity), ' ', def.type), def.w ? h('div', { class: 'muted' }, `Size ${def.w}×${def.h} · ${def.layer}${def.interact ? ' · ' + def.interact : ''}`) : null,
     h('div', { class: 'muted' }, `Owned: ${arr.length}${def.price ? ' · value 🪙' + fmt(sellValue(def)) : ''}${it.ser ? ' · #' + it.ser : ''}`),
     def.type === 'furniture' ? h('button', { class: 'btn', onclick: () => { if (!S.home) return toast('Go into a home you can build in, then press B.', 'warn'); closePanel('inv'); bus.emit('placeItem', { d }); } }, '🔨 Place in home') : null,
     def.type === 'cosmetic' ? h('button', { class: 'btn alt', onclick: () => wear(d) }, '👕 Wear') : null,
@@ -93,7 +94,7 @@ export async function openShop(shopId, remote = false) {
     let list = E.filter(e => (shopState.cat === 'All' || cat(e) === shopState.cat) && (!q || DEFS[e.def].name.toLowerCase().includes(q)) && (shopState.rar === 'any' || DEFS[e.def].rarity === shopState.rar) && (!shopState.afford || e.price <= S.me.coins) && (!shopState.notOwned || !e.owned));
     if (shopState.sort === 'price') list.sort((a, b) => a.price - b.price); else if (shopState.sort === 'priceD') list.sort((a, b) => b.price - a.price); else if (shopState.sort === 'rarity') list.sort((a, b) => RARITIES.indexOf(DEFS[b.def].rarity) - RARITIES.indexOf(DEFS[a.def].rarity));
     const sel = list.find(e => e.def === shopState.sel); const def = sel && DEFS[sel.def];
-    const preview = sel ? h('div', { class: 'card col', style: { width: '230px' } }, h('div', { style: { fontSize: '70px', textAlign: 'center', background: (def.color || '#eee') + '33', borderRadius: '12px' } }, def.emoji), h('b', { style: { fontSize: '1.1rem' } }, def.name), h('div', {}, rarityChip(def.rarity), ' ', def.cat || def.slot || def.type),
+    const preview = sel ? h('div', { class: 'card col', style: { width: '230px' } }, h('div', { style: { fontSize: '70px', textAlign: 'center', background: (def.color || '#eee') + '33', borderRadius: '12px' } }, itemThumb(def.id, 150) || def.emoji), h('b', { style: { fontSize: '1.1rem' } }, def.name), h('div', {}, rarityChip(def.rarity), ' ', def.cat || def.slot || def.type),
       def.w ? h('div', { class: 'muted' }, `Size ${def.w}×${def.h} tiles${def.interact ? ' · ' + def.interact : ''}`) : null, sel.owned ? h('div', { class: 'good' }, `✓ You own ${sel.owned}`) : null, sel.stock != null ? h('div', { class: sel.stock ? '' : 'bad' }, sel.stock ? `Only ${sel.stock} left!` : 'Sold out') : null, sel.perPlayer ? h('div', { class: 'muted' }, `Limit ${sel.perPlayer} per player`) : null, sel.minLevel ? h('div', { class: S.me.level >= sel.minLevel ? 'muted' : 'bad' }, `Requires level ${sel.minLevel}`) : null,
       h('div', { class: 'row' }, h('button', { class: 'btn sm ghost', onclick: () => { shopState.qty = Math.max(1, shopState.qty - 1); rerender('shop'); } }, '−'), h('b', {}, shopState.qty), h('button', { class: 'btn sm ghost', onclick: () => { shopState.qty = Math.min(20, shopState.qty + 1); rerender('shop'); } }, '+')),
       h('button', { class: 'btn', disabled: sel.stock === 0 || sel.price * shopState.qty > S.me.coins, onclick: () => buy(sel, shopId, remote, reload) }, `Buy 🪙 ${fmt(sel.price * shopState.qty)}`), sel.price * shopState.qty > S.me.coins ? h('small', { class: 'bad' }, 'Not enough Coins') : null,

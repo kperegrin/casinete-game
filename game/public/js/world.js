@@ -3,9 +3,11 @@ import { S, bus, setting } from './state.js';
 import { cmd, sendRaw, errText } from './net.js';
 import { T, OUT, outdoorCanvas, nameTag, bubble } from './art.js';
 import { P, HW, HH, unproject, depthSort } from './iso.js';
-import { furnitureSprite, thingSprite, buildingSprite, treeSprite, characterSprite, drawSprite } from './sprites.js';
+import { furnitureSprite, thingSprite, buildingSprite, treeSprite, propSprite, characterSprite, drawSprite } from './sprites.js';
+import { decorations } from './decor.js';
 import { TOX, TOY, hash, diamond, terrainCanvas, waterTiles, wallSprite, doorFrameSprite, wallTall, WALL_TALL, WALL_LOW } from './isoworld.js';
 import { FLOOR_COLORS, WALL_COLORS } from '/shared/content.js';
+import { TEX, floorTexture, isoPattern } from './textures.js';
 import { TILE as TT, W as MW, H as MH, BUILDINGS, SOLID_TILES, OUTDOOR_THINGS, POSTCARDS, OUTDOOR_NPCS, districtAt, INTERIORS } from '/shared/map.js';
 import { DEFS } from '/shared/content.js';
 import { sfx } from './audio.js';
@@ -96,7 +98,7 @@ export function startWorld(canvas) {
 
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; world.time = now;
-  if (S.me && S.world) { update(dt, now); render(now); }
+  if (S.me && S.world) { update(dt, now); render(now); } else renderAttract(now);
   requestAnimationFrame(frame);
 }
 function update(dt, now) {
@@ -129,7 +131,7 @@ const probe = document.createElement('canvas'); probe.width = probe.height = 1; 
 const sprRect = (s, X, Y) => ({ x0: X + s.ox, y0: Y + s.oy, x1: X + s.ox + s.sw / s.s, y1: Y + s.oy + s.sh / s.s });
 function hitSprite(s, X, Y, px, py) {
   const lx = (px - (X + s.ox)) * s.s, ly = (py - (Y + s.oy)) * s.s; if (lx < 0 || ly < 0 || lx >= s.sw || ly >= s.sh) return false;
-  pc.clearRect(0, 0, 1, 1); pc.drawImage(s.img, s.sx + Math.floor(lx), s.sy + Math.floor(ly), 1, 1, 0, 0, 1, 1); return pc.getImageData(0, 0, 1, 1).data[3] > 40;
+  pc.clearRect(0, 0, 1, 1); pc.drawImage(s.img, s.sx + Math.floor(lx), s.sy + Math.floor(ly), 1, 1, 0, 0, 1, 1); return pc.getImageData(0, 0, 1, 1).data[3] > 150;   // ignore the baked soft shadows
 }
 const toWorldPx = (mx, my) => [(mx - world.cam.ox) / world.cam.zoom, (my - world.cam.oy) / world.cam.zoom];
 function hitAt(mx, my, kinds) { const [px, py] = toWorldPx(mx, my); for (let i = world.hits.length - 1; i >= 0; i--) { const h = world.hits[i]; if (kinds && !kinds.includes(h.kind)) continue; if (px < h.r.x0 || px > h.r.x1 || py < h.r.y0 || py > h.r.y1) continue; if (hitSprite(h.s, h.X, h.Y, px, py)) return h; } return null; }
@@ -141,10 +143,12 @@ let staticOut = null;
 function outdoorStatics() {
   if (staticOut) return staticOut; const out = [];
   for (const b of BUILDINGS) out.push(item('bld', buildingSprite(b), b.x, b.y, { x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, z0: 0, z1: 130 }));
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (OUT[y * MW + x] === TT.TREE) { const v = Math.floor(hash(x, y, 3) * 3); out.push(item('tree', treeSprite(v), x, y, { x0: x + 0.3, x1: x + 0.7, y0: y + 0.3, y1: y + 0.7, z0: 0, z1: 70 }, { shadow: [x + 0.5, y + 0.5, 22] })); }
+  const TV = [0, 0, 0, 1, 1, 3, 4];             // round tree ×3, pine ×2, cypress, blossom
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (OUT[y * MW + x] === TT.TREE) { const v = TV[Math.floor(hash(x, y, 3) * TV.length)]; out.push(item('tree', treeSprite(v), x, y, { x0: x + 0.3, x1: x + 0.7, y0: y + 0.3, y1: y + 0.7, z0: 0, z1: 80 })); }
+  for (const d of decorations()) { const s = propSprite(d.name); if (!s) continue; const thin = d.w === 1 && d.h === 1; out.push(item('prop', s, d.x, d.y, thin ? { x0: d.x + 0.3, x1: d.x + 0.7, y0: d.y + 0.3, y1: d.y + 0.7, z0: 0, z1: 60 } : { x0: d.x, x1: d.x + d.w, y0: d.y, y1: d.y + d.h, z0: 0, z1: 30 })); }
   return staticOut = out;
 }
-const thingFoot = (t) => t.w ? [t.x - t.w / 2, t.y - t.h / 2, t.w, t.h] : [Math.floor(t.x), Math.floor(t.y), 1, 1];
+const thingFoot = (t) => t.k === 'fountain' ? [Math.floor(t.x), Math.floor(t.y) - 1, 2, 2] : t.w ? [t.x - t.w / 2, t.y - t.h / 2, t.w, t.h] : [Math.floor(t.x), Math.floor(t.y), 1, 1];
 function thingItems(now) {
   const out = [];
   for (const t of thingsHere()) {
@@ -159,9 +163,11 @@ function drawFishSpot(c, X, Y, now) { c.save(); c.strokeStyle = 'rgba(255,255,25
 
 // Rooms (homes and public interiors) share one description: size, wall test, floor colours.
 function room() {
-  if (S.home) { const h = S.home, wc = WALL_COLORS[h.wallColor || 0]; return { w: h.w, h: h.h, wc, wall: (x, y) => h.walls[x + ',' + y] || 0, floor: (x, y) => FLOOR_COLORS[h.floors[x + ',' + y] ?? 0] || FLOOR_COLORS[0], home: h }; }
+  if (S.home) { const h = S.home, wc = WALL_COLORS[h.wallColor || 0]; return { w: h.w, h: h.h, wc, wall: (x, y) => h.walls[x + ',' + y] || 0, floor: (x, y) => { const i = h.floors[x + ',' + y] ?? 0; return floorTexture(FLOOR_COLORS[i] || FLOOR_COLORS[0], i); }, home: h }; }
   const d = S.world.interiors[S.loc]; if (!d._ws) { d._ws = new Set(d.walls.map(([x, y]) => x + ',' + y)); }
-  return { w: d.w, h: d.h, wc: '#6a5a82', wall: (x, y) => d._ws.has(x + ',' + y) ? (x === d.exit.x && y === d.exit.y ? 2 : 1) : 0, floor: (x, y) => (S.loc === 'casino' && x >= 2 && x < 28 && y >= 3 && y < 13) ? ((x + y) % 2 ? '#7a2a4c' : '#6c2342') : d.floor, def: d };
+  const IW = { shop_furn: '#c98a5a', shop_cloth: '#d98bb8', townhall: '#9fb3c8', casino: '#4b2a5e', track: '#6f9a5a' };
+  const base = S.loc === 'casino' ? TEX.stone('#4a3a5e') : S.loc === 'townhall' ? TEX.marble('#eef1f4') : S.loc === 'shop_cloth' ? TEX.tiles('#f1d7e8') : TEX.planks(d.floor);
+  return { w: d.w, h: d.h, wc: IW[S.loc] || '#6a5a82', wall: (x, y) => d._ws.has(x + ',' + y) ? (x === d.exit.x && y === d.exit.y ? 2 : 1) : 0, floor: (x, y) => (S.loc === 'casino' && x >= 2 && x < 28 && y >= 3 && y < 13) ? TEX.casinoCarpet() : base, def: d };
 }
 export function drawFurnGhost(c, d, x, y, rot, { alpha = 0.72, tint = null, sel = false } = {}) {
   const def = DEFS[d]; if (!def) return; const wl = def.layer === 'wall'; const w = !wl && (rot & 1) ? def.h : def.w, h = wl ? 1 : (rot & 1) ? def.w : def.h;
@@ -192,7 +198,9 @@ function render(now) {
     if (world.target?.kind === 'door') { const b = BUILDINGS.find(q => q.id === world.target.id); if (b) { c.fillStyle = `rgba(255,236,140,${0.35 + 0.2 * Math.sin(now / 200)})`; diamond(c, b.door[0], b.door[1]); c.fill(); } }
   } else {
     // floor
-    for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) { if (R.wall(x, y) && wallTall((a, b) => R.wall(a, b), x, y)) continue; diamond(c, x, y); c.fillStyle = R.floor(x, y); c.fill(); diamond(c, x, y); c.fillStyle = FLOOR_SHADE(x, y); c.fill(); }
+    const groups = new Map(); for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) { if (R.wall(x, y) && wallTall((a, b) => R.wall(a, b), x, y)) continue; const t = R.floor(x, y); (groups.get(t) || groups.set(t, []).get(t)).push(x, y); }
+    for (const [t, xy] of groups) { c.beginPath(); for (let i = 0; i < xy.length; i += 2) { const x = xy[i], y = xy[i + 1]; const a = P(x, y), b = P(x + 1, y), e = P(x + 1, y + 1), f = P(x, y + 1); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(e[0], e[1]); c.lineTo(f[0], f[1]); c.closePath(); } c.fillStyle = isoPattern(c, t); c.fill(); c.strokeStyle = c.fillStyle; c.lineWidth = 0.8; c.stroke(); }
+    { const g = c.createLinearGradient(...P(0, 0), ...P(R.w, R.h)); g.addColorStop(0, 'rgba(0,0,0,.16)'); g.addColorStop(0.35, 'rgba(0,0,0,0)'); c.fillStyle = g; diamond(c, 0, 0, R.w, R.h); c.fill(); }   // soft ambient occlusion from the back walls
     // front edge of the floor slab
     items = []; const isW = (a, b) => R.wall(a, b);
     for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) {
@@ -220,7 +228,7 @@ function render(now) {
   // characters
   const chars = []; const tags = [];
   const addChar = (kind, id, name, look, x, y, dir, walk, sit, extra = {}) => {
-    const s = characterSprite(look, dir, walk ? Math.floor(walk / 1.6) & 3 : 0, !!sit); const seatH = sit ? 5 : 0; const [X, Y] = P(x - 0.5, y - 0.5, seatH); const bb = { x0: x - 0.22, x1: x + 0.22, y0: y - 0.22, y1: y + 0.22, z0: seatH, z1: seatH + 46 };
+    const s = characterSprite(look, dir, walk ? Math.floor(walk / 1.6) & 3 : 0, !!sit); const seatH = 0; const [X, Y] = P(x - 0.5, y - 0.5, seatH); const bb = { x0: x - 0.22, x1: x + 0.22, y0: y - 0.22, y1: y + 0.22, z0: seatH, z1: seatH + 46 };
     const it = { kind, id, s, X, Y, bb, sr: sprRect(s, X, Y), char: true, cx: x, cy: y, seatH, ...extra }; if (vis(it.sr)) chars.push(it); return it;
   };
   for (const n of npcsHere()) { const dx = S.x - n.x, dy = S.y - n.y; const near = Math.hypot(dx, dy) < 5; const dir = near ? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 0 : 2)) : 0; const it = addChar('npc', n.id, n.name, { ...n.look, body: n.look.body ?? 1, topColor: n.look.topColor ?? 3 }, n.x, n.y, dir, 0, false, { n }); it.tag = { name: n.name, color: '#ffd98e', npc: n }; }
@@ -228,7 +236,7 @@ function render(now) {
   // build-mode ghosts of items being dragged by other players
   const all = items.concat(chars);
   const sorted = depthSort(all);
-  const hosts = new Map(); for (const ch of chars) if (ch.p?.sit) { const h = seatHost(items, ch.p); if (h) { hosts.set(ch, h); ch.attached = true; } }
+  const hosts = new Map(); for (const ch of chars) if (ch.p?.sit) { const h = seatHost(items, ch.p); if (h) { hosts.set(ch, h); ch.attached = true; const face = h.kind === 'furn' ? [0, 3, 2, 1][h.o.rot & 3] : 0; if (face !== (ch.p.dir || 0)) { ch.s = characterSprite(ch.p.look, face, 0, true); ch.sr = sprRect(ch.s, ch.X, ch.Y); } } }
   const attached = new Map(); for (const [ch, h] of hosts) { (attached.get(h) || attached.set(h, []).get(h)).push(ch); }
   const hitItems = [];
   const drawIt = (it) => {
@@ -256,6 +264,23 @@ function render(now) {
   if (!interior) { const f = dayFraction(); const night = f > 0.62 && f < 0.95 ? Math.min(1, Math.min(f - 0.62, 0.95 - f) * 12) : 0; if (night > 0) { c.fillStyle = `rgba(14,20,60,${0.42 * night})`; c.fillRect(0, 0, W, H); } }
   for (const fn of world.hooks.overlay) { c.save(); c.translate(cam.ox, cam.oy); c.scale(z, z); fn(c, now); c.restore(); }
   drawMinimap();
+}
+// Menu background: a slow camera drift over the real town, with a few people strolling around the fountain.
+const strollers = Array.from({ length: 7 }, (_, i) => ({ r: 2.6 + (i % 3) * 0.9, a: i * 0.9, sp: (i % 2 ? 1 : -1) * (0.18 + i * 0.02), look: { body: i % 3, skin: (i * 3) % 8, hairStyle: (i * 7) % 10, hairColor: (i * 5) % 10, topColor: (i * 3 + 1) % 10, bottomColor: (i * 7 + 2) % 10, shoeColor: 7, height: (i % 5) - 2, top: ['top_basic', 'top_hoodie', 'top_shirt', 'top_tank'][i % 4], bottom: ['bottom_basic', 'bottom_shorts', 'bottom_skirt', 'bottom_basic'][i % 4], shoes: 'shoes_basic', hat: [null, 'hat_cap', null, 'hat_beret', null, 'hat_party', null][i], glasses: [null, null, 'gl_sun', null, 'gl_round', null, null][i] } }));
+function renderAttract(now) {
+  const c = world.ctx, dpr = world.dpr || 1; if (!c) return; c.setTransform(dpr, 0, 0, dpr, 0, 0); const W = innerWidth, H = innerHeight; const z = 1.1;
+  const t = now / 1000; const [cx, cy] = P(30.5 + Math.sin(t * 0.05) * 9, 19 + Math.cos(t * 0.037) * 6, 20); const ox = W / 2 - cx * z, oy = H / 2 - cy * z;
+  c.fillStyle = '#3aa6d8'; c.fillRect(0, 0, W, H); c.save(); c.translate(ox, oy); c.scale(z, z);
+  c.drawImage(terrainCanvas(), -TOX, -TOY);
+  const view = { x0: -ox / z - 60, y0: -oy / z - 140, x1: (W - ox) / z + 60, y1: (H - oy) / z + 120 }; const vis = (r) => r.x1 > view.x0 && r.x0 < view.x1 && r.y1 > view.y0 && r.y0 < view.y1;
+  const items = outdoorStatics().filter(it => vis(it.sr));
+  for (const th of OUTDOOR_THINGS) { if (th.k === 'fish') continue; const [fx, fy, fw, fh] = thingFoot(th); items.push(item('thing', thingSprite(th), fx, fy, { x0: fx, x1: fx + fw, y0: fy, y1: fy + fh, z0: 0, z1: 70 })); }
+  const chars = [];
+  const addC = (look, x, y, dir, walk) => { const s = characterSprite(look, dir, walk ? Math.floor(walk / 1.6) & 3 : 0, false); const [X, Y] = P(x - 0.5, y - 0.5); chars.push({ kind: 'npc', s, X, Y, cx: x, cy: y, char: true, bb: { x0: x - 0.22, x1: x + 0.22, y0: y - 0.22, y1: y + 0.22, z0: 0, z1: 46 }, sr: sprRect(s, X, Y) }); };
+  for (const n of OUTDOOR_NPCS) addC({ ...n.look, body: n.look.body ?? 1 }, n.x, n.y, 0, 0);
+  for (const p of strollers) { const a = p.a + t * p.sp; const x = 31 + Math.cos(a) * p.r, y = 16 + Math.sin(a) * p.r * 0.8; const vx = -Math.sin(a) * p.sp, vy = Math.cos(a) * p.sp * 0.8; const dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 1 : 3) : (vy > 0 ? 0 : 2); addC(p.look, x, y, dir, t * 11); }
+  for (const it of depthSort(items.concat(chars))) { if (it.char) { const [X, Y] = P(it.cx, it.cy); c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(X, Y, 13, 6, 0, 0, 7); c.fill(); } drawSprite(c, it.s, it.X, it.Y); }
+  c.restore();
 }
 function drawMinimap() {
   const mm = $('#minimap'); if (!mm) return; const c = mm.getContext('2d'); c.clearRect(0, 0, mm.width, mm.height);
